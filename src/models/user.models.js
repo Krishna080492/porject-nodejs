@@ -54,7 +54,7 @@ const userSchema = new mongoose.Schema(
 userSchema.pre("save", async function (next) {
   //password change or update kriye tyare j bcrypt kare otherwise next pr jtu rehse
   if (this.isModified("password")) {
-    this.password = await bycrpt.hash(this.password, 10); //i want when i save the file password will be encrypted
+    this.password = await bycrpt.hash(this.password, 10); //when user save the file password will be encrypted
     next();
   } else {
     return next();

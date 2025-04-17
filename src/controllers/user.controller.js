@@ -11,6 +11,26 @@ import { apiResponse } from "../utils/ApiResponse.js";
 //   });
 // });
 
+// create access n refresh token method together for further use
+const generateAccessTokenAndRefreshToken = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    // generate token
+    const accessToken = User.generateAccessToken();
+    const refreshToken = User.generateRefreshToken();
+
+    user.refreshToken = refreshToken; //refresh token also save in database
+    await user.save({ validateBeforeSave: false }); //without validation password save in db
+
+    return { accessToken, refreshToken }; //after generating token it return
+  } catch (error) {
+    throw new ApiError(
+      500,
+      "Something went wrong while generating refresh and access token."
+    );
+  }
+};
+
 // steps for register user details:
 // 1. get user details from frontend
 // 2. validation - user fields not emty
@@ -21,16 +41,6 @@ import { apiResponse } from "../utils/ApiResponse.js";
 // 7. remove password & refresh token field from response (we dont want it store in db so remove)
 // 8. check if user create or Not
 // 9. return res
-
-// easy way:
-// const registerUser = async (req, res) => {
-//   let { username, email, fullName, password } = req.body;
-//   try {
-//     console.log("email : ", email);
-//   } catch (error) {
-//     console.log(error);
-//   }
-// };
 
 const registerUser = asyncHandler(async (req, res) => {
   try {
@@ -95,4 +105,83 @@ const registerUser = asyncHandler(async (req, res) => {
     throw err;
   }
 });
-export { registerUser };
+
+// steps for login user details:
+// get data from req.body
+// username or email checking
+// find the user
+// if user get check for password
+// password correct : refresh token n access token work start
+// send cookies
+// res send
+
+const loginUser = asyncHandler(async (req, res) => {
+  // get data from req.body
+  const { username, email, password } = req.body;
+
+  // username or email checking
+  if (!username || !email) {
+    //check both email n username for login
+    throw new ApiError(400, "username or email required!!");
+  }
+
+  // find the user
+  const user = await User.findOne({ $or: [{ username }, { email }] });
+  if (!user) {
+    throw new ApiError(404, "User doesn't exist");
+  }
+
+  // if user get check for password
+  const isPasswordValid = await user.isPasswordCorrect(password); //ispasswordcorrect comming from user.model
+  if (!isPasswordValid) {
+    throw new ApiError(401, "Password Incorrect");
+  }
+
+  // password correct : refresh token n access token work start -first generate this part is above the code start generate access n refresh token after that
+  const { accessToken, refreshToken } =
+    await generateAccessTokenAndRefreshToken(user._id);
+  const loggedInUser = await User.findById(user._id).select(
+    "-password -refreshToken"
+  ); //option this part if u want send full data to user except password n refreshtoken u have to write this
+
+  // send cookies
+  const options = {
+    //everybody change the cookies but if http n secure :true after that only server can modified the cookies
+    httpOnly: true,
+    secure: true,
+  };
+
+  // response return - in response we return both tokens n cookies n loggedinuser
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshtoken", refreshToken, options)
+    .json(
+      new apiResponse(
+        200,
+        { user: loggedInUser, accessToken, refreshToken },
+        "User Logged In Successfully!!"
+      )
+    );
+});
+
+// logout steps:
+//clear cookies and refreshtoken
+
+const logoutUser = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(
+    req.user._id,
+    { $set: { refreshToken: undefined } },
+    { new: true }
+  );
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+  return res
+    .status(200)
+    .clearCookie("accessToken")
+    .clearCookie("refreshToken")
+    .json(new apiResponse(200, {}, "User Logged Out Successfully"));
+});
+export { registerUser, loginUser, logoutUser };

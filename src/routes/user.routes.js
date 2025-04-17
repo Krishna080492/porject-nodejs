@@ -1,9 +1,15 @@
 import { Router } from "express";
-import { registerUser } from "../controllers/user.controller.js";
+import {
+  loginUser,
+  logoutUser,
+  registerUser,
+} from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
+// registration
 router.route("/register").post(
   upload.fields([
     //middleware multer : multiple files mate fields
@@ -18,5 +24,11 @@ router.route("/register").post(
   ]),
   registerUser
 ); //http://localhost:8000/api/v1/users/register
+
+// login
+router.route("/login").post(loginUser);
+
+// secured routes
+router.route("/logout").post(verifyJWT, logoutUser); //verifyjwt came from middleware, its a middleware
 
 export default router;
