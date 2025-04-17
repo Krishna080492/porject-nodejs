@@ -120,7 +120,7 @@ const loginUser = asyncHandler(async (req, res) => {
   const { username, email, password } = req.body;
 
   // username or email checking
-  if (!username || !email) {
+  if (!(username || email)) {
     //check both email n username for login
     throw new ApiError(400, "username or email required!!");
   }
