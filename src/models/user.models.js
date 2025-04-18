@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
-import bycrpt from "bcrypt";
+import bcrypt from "bcrypt";
 
 const userSchema = new mongoose.Schema(
   {
@@ -45,6 +45,7 @@ const userSchema = new mongoose.Schema(
     },
     refreshToken: {
       type: String,
+      default:null
     },
   },
   { timestamps: true }
